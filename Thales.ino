@@ -24,6 +24,11 @@ boolean tooClose = false;
 int redLEDPin = 4;
 int greenLEDPin = 5;
 int tempPin = 1;
+int batteryPinOne = 2;
+int batteryPinTwo = 3;
+int batteryPinThree = 4;
+int shortDataLength = 24;
+int longDataLength = 50;
 
 // Motor Controller
 int enA = 6;
@@ -131,7 +136,7 @@ void decrypt(const byte *msg, const byte *key, byte *omsg) {
       msgLen++;
     }
   }
-  msgLen = 12;
+  msgLen = shortDataLength;
       
   spritz_setup(&s_ctx, key, keyLen);
   spritz_crypt(&s_ctx, msg, msgLen, omsg);
@@ -207,18 +212,30 @@ void loop()                     // run over and over again
       strcat(message, "G");
     }
     float temperature = ((analogRead(tempPin)*5.0/1024.0)-0.5)*100.0;
-    char tempTwo[6];
-    dtostrf(temperature, 6, 2, tempTwo);
-    strcat(message,tempTwo);
+    char temp[6];
+    dtostrf(temperature, 4, 0, temp);
+    strcat(message, temp);
+    float batteryCellOne = (analogRead(batteryPinOne))*5/1024;
+    char batOne[6];
+    dtostrf(batteryCellOne, 4, 0, batOne);
+    strcat(message, batOne);
+    float batteryCellTwo = (2*analogRead(batteryPinTwo) - batteryCellOne)*5/1024;
+    char batTwo[6];
+    dtostrf(batteryCellTwo, 4, 0, batTwo);
+    strcat(message, batTwo);
+    float batteryCellThree = (3*analogRead(batteryPinThree) - batteryCellTwo - batteryCellOne)*5/1024;
+    char batThree[6];
+    dtostrf(batteryCellThree, 6, 2, batThree);
+    strcat(message, batThree);
     char encryptedMessage[64];
     encrypt(message, testKey, encryptedMessage);
     boolean found = false;
     if(full) {
-      for(int i = 38; i < 64; i++) {
+      for(int i = longDataLength; i < 64; i++) {
         encryptedMessage[i] = '\0';
       }
     } else {
-      for(int i = 12; i < 64; i++) {
+      for(int i = shortDataLength; i < 64; i++) {
         encryptedMessage[i] = '\0';
       }
     }
