@@ -5,6 +5,7 @@
 #include <Adafruit_GPS.h> // Adafruit GPS library. Thales gave us an Adafruit Ultimate GPS Shield, so their library works perfectly.
 #include <SoftwareSerial.h> // Software serial for GPS module. This is used to give us another serial port so we can communicate with the GPS shield and computer/radio at the same time.
 #include <SharpIR.h> // Infrared distance sensor library. I think it's just a variable resistor, but regardless, the library works like a charm.
+#include <SpritzCipher.h> // Encryption library.
 
 // GPS Initialization
 SoftwareSerial mySerial(3, 2);
@@ -17,11 +18,22 @@ boolean printGPSData = true;
 // Distance Sensor Initialization
 SharpIR sensor(GP2YA41SK0F, A0);
 boolean printDistanceData = false;
+boolean tooClose = false;
 
 // Misc.
 int redLEDPin = 4;
 int greenLEDPin = 5;
 int tempPin = 1;
+
+// Motor Controller
+int enA = 6;
+int in1 = 7;
+int in2 = 8;
+
+// Encryption
+const byte testKey[64] = {0x43,0x5E,0xD6,0xD6,0x1C,0xA1,0x81,0x8B,0xBA,0x96,0xAB,0x98,0xB1,0xB6,0xC8,0x62,0x81,0x24,0xB6,0xF7,0xEB,0xA7,0x7A,0x7B,0xE4,0x24,0x57,0xF8,0x6C,0xB3,0x5A,0x63,0x43,0x5E,0xD6,0xD6,0x1C,0xA1,0x81,0x8B,0xBA,0x96,0xAB,0x98,0xB1,0xB6,0xC8,0x62,0x81,0x24,0xB6,0xF7,0xEB,0xA7,0x7A,0x7B,0xE4,0x24,0x57,0xF8,0x6C,0xB3,0x5A,0x63};
+
+uint32_t timer = millis();
 
 void setup()
 {
@@ -31,9 +43,19 @@ void setup()
   digitalWrite(redLEDPin, HIGH);
   digitalWrite(greenLEDPin, HIGH);
 
+  // Motor Controller
+  pinMode(enA,OUTPUT);
+  pinMode(in1,OUTPUT);
+  pinMode(in2,OUTPUT);
+  analogWrite(enA, 0);
+  digitalWrite(in1,LOW);
+  digitalWrite(in2,HIGH);
+
   // connect at 115200 so we can read the GPS fast enough and echo without dropping chars
   // also spit it out
-  Serial.begin(115200);
+
+  Serial.begin(9600);
+  Serial.println("Controller 0001");
 
   // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
   GPS.begin(9600);
@@ -53,7 +75,6 @@ void setup()
   digitalWrite(redLEDPin, LOW);
   digitalWrite(greenLEDPin, LOW);
 }
-
 
 // Interrupt is called once a millisecond, looks for any new GPS data, and stores it
 SIGNAL(TIMER0_COMPA_vect) {
@@ -81,57 +102,127 @@ void useInterrupt(boolean v) {
   }
 }
 
-uint32_t timer = millis();
-boolean tooClose = false;
+void encrypt(const byte *msg, const byte *key, byte *omsg) {
+  spritz_ctx s_ctx;
+  omsg[0] = '\0';
+
+  unsigned int msgLen = 0;
+  byte keyLen = 64;
+
+  for(int i = 0; i < 64; i++) {
+    if(msg[i] == 0) {
+      break;
+    }
+    msgLen++;
+  }
+
+  spritz_setup(&s_ctx, key, keyLen);
+  spritz_crypt(&s_ctx, msg, msgLen, omsg);
+}
+
+void decrypt(const byte *msg, const byte *key, byte *omsg) {
+  spritz_ctx s_ctx;
+
+  unsigned int msgLen = 0;
+  byte keyLen = 64;
+  
+  for(int i = 0; i < 64; i++) {
+    if(msg[i] > 0) {
+      msgLen++;
+    }
+  }
+  msgLen = 12;
+      
+  spritz_setup(&s_ctx, key, keyLen);
+  spritz_crypt(&s_ctx, msg, msgLen, omsg);
+}
+
 void loop()                     // run over and over again
 {
   int distance = sensor.getDistance();
+  if(Serial.available()) {
+    char c = Serial.read();
+    if(c == 'S' || distance <=5) {
+      analogWrite(enA, 0);
+      digitalWrite(in1,LOW);
+      digitalWrite(in2,LOW);
+    } else if(c == 'B') {
+      int speed = 100;
+      if(Serial.available()) {
+        speed = Serial.parseInt();
+      }
+      analogWrite(enA, speed);
+      digitalWrite(in1,HIGH);
+      digitalWrite(in2,LOW);
+    } else if(c == 'F') {
+      int speed = 100;
+      if(Serial.available()) {
+        speed = Serial.parseInt();
+      }
+      analogWrite(enA, speed);
+      digitalWrite(in1,LOW);
+      digitalWrite(in2,HIGH);
+    }
+  }
   // if a sentence is received, we can check the checksum, parse it...
   if (GPS.newNMEAreceived()) {
+    boolean full = false;
+    char message[64];
+    message[0] = '\0';
+    strcat(message, "G");
     if (!GPS.parse(GPS.lastNMEA())) {   // this also sets the newNMEAreceived() flag to false
       return;  // we can fail to parse a sentence in which case we should just wait for another
     }
     if (printGPSData) {
-      Serial.println();
-      Serial.println();
-      Serial.println();
-      Serial.print("\nTime: ");
-      Serial.print(GPS.hour, DEC); Serial.print(':');
-      Serial.print(GPS.minute, DEC); Serial.print(':');
-      Serial.print(GPS.seconds, DEC); Serial.print('.');
-      Serial.print(GPS.milliseconds);
-      Serial.println("GMT");
-      Serial.print("Date: ");
-      Serial.print(GPS.day, DEC); Serial.print('/');
-      Serial.print(GPS.month, DEC); Serial.print("/20");
-      Serial.println(GPS.year, DEC);
       if (GPS.fix) {
-        Serial.print("Location: ");
-        Serial.print(GPS.latitudeDegrees, 4);
-        Serial.print(", ");
-        Serial.println(GPS.longitudeDegrees, 4);
-
-        Serial.print("Speed (knots): "); Serial.println(GPS.speed);
-        Serial.print("Altitude: "); Serial.println(GPS.altitude);
-        Serial.print("Satellites: ");
-        if (GPS.satellites >= 5) {
-          Serial.println("Good Lock");
-        } else {
-          Serial.println("Poor Reception");
-        }
+        full = true;
+        char locationBuffer[7];
+        dtostrf(GPS.latitudeDegrees, 7, 2, locationBuffer);
+        strcat(message, locationBuffer);
+        dtostrf(GPS.longitudeDegrees, 7, 2, locationBuffer);
+        strcat(message, locationBuffer);
+        char speedBuffer[5];
+        dtostrf(GPS.speed, 5, 2, speedBuffer);
+        strcat(message, speedBuffer);
+        char altitudeBuffer[8];
+        dtostrf(GPS.altitude, 8, 2, altitudeBuffer);
+        strcat(message, altitudeBuffer);
+        char satelliteBuffer[1];
+        dtostrf(GPS.satellites, 1, 0, satelliteBuffer);
+        strcat(message, satelliteBuffer);
+        mySerial.print("A");
+        mySerial.println(GPS.latitudeDegrees, 4);
+        mySerial.print("O");
+        mySerial.println(GPS.longitudeDegrees, 4);
       } else {
-        Serial.println("No Fix");
+        strcat(message, "NF");
       }
-      Serial.print("Infrared Distance: ");
-      Serial.print(distance);
-      if (distance <= 5) {
-        Serial.println(" Too Close! Stop!");
-      } else {
-        Serial.println("");
-      }
-      Serial.print("Temperature (C): ");
-      Serial.println(((analogRead(tempPin)*5.0/1024.0)-0.5)*100.0);
     }
+    char distanceBuffer[2];
+    dtostrf(distance, 2, 0, distanceBuffer);
+    strcat(message,distanceBuffer);
+    if(distance <= 5) {
+      strcat(message, "S");
+    } else {
+      strcat(message, "G");
+    }
+    float temperature = ((analogRead(tempPin)*5.0/1024.0)-0.5)*100.0;
+    char tempTwo[6];
+    dtostrf(temperature, 6, 2, tempTwo);
+    strcat(message,tempTwo);
+    char encryptedMessage[64];
+    encrypt(message, testKey, encryptedMessage);
+    boolean found = false;
+    if(full) {
+      for(int i = 38; i < 64; i++) {
+        encryptedMessage[i] = '\0';
+      }
+    } else {
+      for(int i = 12; i < 64; i++) {
+        encryptedMessage[i] = '\0';
+      }
+    }
+    Serial.println(encryptedMessage);
   }
 
   // LED control basaed on distance sensor
@@ -139,6 +230,9 @@ void loop()                     // run over and over again
     tooClose = true;
     digitalWrite(redLEDPin, HIGH);
     digitalWrite(greenLEDPin, LOW);
+    analogWrite(enA, 0);
+    digitalWrite(in1,LOW);
+    digitalWrite(in2,LOW);
   } else {
     tooClose = false;
     digitalWrite(redLEDPin, LOW);
