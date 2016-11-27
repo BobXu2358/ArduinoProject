@@ -1,6 +1,7 @@
 Output:
 	No GPS Fix:
 		"GNFDDSTTT.TTV.VVV.VVV.VV"
+			Ex: "GNF31G 21.463.203.203.20"
 			First character always "G". Used to ensure that the message wasn't corrupted.
 			NF - No Fix.
 			DD - Two digit distance reading. (cm)
@@ -8,10 +9,11 @@ Output:
 			TTT.TT - Temperature measurement. (*C)
 			V.VV x 3 - Voltage reading for each battery cell. (V)
 	GPS Fix:
-		"GOOOO.OOAAAA.AASSS.SAAAAA.AASDDSTTT.TTV.VVV.VVV.VV"
+		"GAAAA.AAOOOO.OOSSS.SAAAAA.AASDDSTTT.TTV.VVV.VVV.VV"
+			Ex: "G  40.44 -79.96  1.3  130.4631G 21.463.203.203.20"
 			First character always "G". Used to ensure that the message wasn't corrupted.
-			OOOO.OO - Longitude. (Includes "-" for negative values.) (*)
 			AAAA.AA - Latitude. (Includes "-" for negative values.) (*)
+			OOOO.OO - Longitude. (Includes "-" for negative values.) (*)
 			SSS.S - Speed. (kn)
 			AAAAA.AA - Altitude. (cm)
 			S - Number of satellites.
