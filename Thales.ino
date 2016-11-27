@@ -21,19 +21,21 @@ boolean printDistanceData = false;
 boolean tooClose = false;
 
 // Misc.
-int redLEDPin = 4;
-int greenLEDPin = 5;
 int tempPin = 1;
 int batteryPinOne = 2;
 int batteryPinTwo = 3;
 int batteryPinThree = 4;
 int shortDataLength = 24;
 int longDataLength = 50;
+int direction = 0;
+int speed = 0;
 
 // Motor Controller
-int enA = 6;
-int in1 = 7;
-int in2 = 8;
+int enA = 5;
+int in1 = 4;
+int in2 = 7;
+int in3 = 8;
+int in4 = 9;
 
 // Encryption
 const byte testKey[64] = {0x43,0x5E,0xD6,0xD6,0x1C,0xA1,0x81,0x8B,0xBA,0x96,0xAB,0x98,0xB1,0xB6,0xC8,0x62,0x81,0x24,0xB6,0xF7,0xEB,0xA7,0x7A,0x7B,0xE4,0x24,0x57,0xF8,0x6C,0xB3,0x5A,0x63,0x43,0x5E,0xD6,0xD6,0x1C,0xA1,0x81,0x8B,0xBA,0x96,0xAB,0x98,0xB1,0xB6,0xC8,0x62,0x81,0x24,0xB6,0xF7,0xEB,0xA7,0x7A,0x7B,0xE4,0x24,0x57,0xF8,0x6C,0xB3,0x5A,0x63};
@@ -42,19 +44,6 @@ uint32_t timer = millis();
 
 void setup()
 {
-  // Initialize and turn on status LEDs
-  pinMode(redLEDPin, OUTPUT);
-  pinMode(greenLEDPin, OUTPUT);
-  digitalWrite(redLEDPin, HIGH);
-  digitalWrite(greenLEDPin, HIGH);
-
-  // Motor Controller
-  pinMode(enA,OUTPUT);
-  pinMode(in1,OUTPUT);
-  pinMode(in2,OUTPUT);
-  analogWrite(enA, 0);
-  digitalWrite(in1,LOW);
-  digitalWrite(in2,HIGH);
 
   // connect at 115200 so we can read the GPS fast enough and echo without dropping chars
   // also spit it out
@@ -76,9 +65,6 @@ void setup()
   // Ask for firmware version
   mySerial.println(PMTK_Q_RELEASE);
 
-  // Turn off status LEDs
-  digitalWrite(redLEDPin, LOW);
-  digitalWrite(greenLEDPin, LOW);
 }
 
 // Interrupt is called once a millisecond, looks for any new GPS data, and stores it
@@ -145,28 +131,69 @@ void decrypt(const byte *msg, const byte *key, byte *omsg) {
 void loop()                     // run over and over again
 {
   int distance = sensor.getDistance();
+  int detectionDistance = 15;
+  if(speed < 80)
+    detectionDistance = 10;
+  if(distance <= 10 && direction == 1) {
+    analogWrite(enA, 0);
+    digitalWrite(in1,LOW);
+    digitalWrite(in2,LOW);
+    digitalWrite(in3,LOW);
+    digitalWrite(in4,LOW);
+  }
   if(Serial.available()) {
     char c = Serial.read();
-    if(c == 'S' || distance <=5) {
+    if(c == 'S') {
+      direction = 0;
       analogWrite(enA, 0);
       digitalWrite(in1,LOW);
       digitalWrite(in2,LOW);
+      digitalWrite(in3,LOW);
+      digitalWrite(in4,LOW);
     } else if(c == 'B') {
-      int speed = 100;
+      direction = 2;
+      speed = 100;
       if(Serial.available()) {
         speed = Serial.parseInt();
       }
       analogWrite(enA, speed);
       digitalWrite(in1,HIGH);
       digitalWrite(in2,LOW);
+      digitalWrite(in3,LOW);
+      digitalWrite(in4,HIGH);
     } else if(c == 'F') {
-      int speed = 100;
+      direction = 1;
+      speed = 100;
       if(Serial.available()) {
         speed = Serial.parseInt();
       }
       analogWrite(enA, speed);
       digitalWrite(in1,LOW);
       digitalWrite(in2,HIGH);
+      digitalWrite(in3,HIGH);
+      digitalWrite(in4,LOW);
+    } else if(c == 'L') {
+      direction = 3;
+      speed = 100;
+      if(Serial.available()) {
+        speed = Serial.parseInt();
+      }
+      analogWrite(enA, speed);
+      digitalWrite(in1,HIGH);
+      digitalWrite(in2,LOW);
+      digitalWrite(in3,HIGH);
+      digitalWrite(in4,LOW);
+    } else if(c == 'R') {
+      direction = 4;
+      speed = 100;
+      if(Serial.available()) {
+        speed = Serial.parseInt();
+      }
+      analogWrite(enA, speed);
+      digitalWrite(in1,LOW);
+      digitalWrite(in2,HIGH);
+      digitalWrite(in3,LOW);
+      digitalWrite(in4,HIGH);
     }
   }
   // if a sentence is received, we can check the checksum, parse it...
@@ -206,26 +233,26 @@ void loop()                     // run over and over again
     char distanceBuffer[2];
     dtostrf(distance, 2, 0, distanceBuffer);
     strcat(message,distanceBuffer);
-    if(distance <= 5) {
+    if(distance <= 10) {
       strcat(message, "S");
     } else {
       strcat(message, "G");
     }
-    float temperature = ((analogRead(tempPin)*5.0/1024.0)-0.5)*100.0;
+    double temperature = ((analogRead(tempPin)*5.0/1024.0)-0.5)*100.0;
     char temp[6];
-    dtostrf(temperature, 4, 0, temp);
+    dtostrf(temperature, 6, 2, temp);
     strcat(message, temp);
-    float batteryCellOne = (analogRead(batteryPinOne))*5/1024;
-    char batOne[6];
-    dtostrf(batteryCellOne, 4, 0, batOne);
+    double batteryCellOne = analogRead(batteryPinOne)*5.0/1024.0;
+    char batOne[4];
+    dtostrf(batteryCellOne, 4, 2, batOne);
     strcat(message, batOne);
-    float batteryCellTwo = (2*analogRead(batteryPinTwo) - batteryCellOne)*5/1024;
-    char batTwo[6];
-    dtostrf(batteryCellTwo, 4, 0, batTwo);
+    double batteryCellTwo = analogRead(batteryPinTwo)*10.0/1024.0 - batteryCellOne;
+    char batTwo[4];
+    dtostrf(batteryCellTwo, 4, 2, batTwo);
     strcat(message, batTwo);
-    float batteryCellThree = (3*analogRead(batteryPinThree) - batteryCellTwo - batteryCellOne)*5/1024;
-    char batThree[6];
-    dtostrf(batteryCellThree, 6, 2, batThree);
+    double batteryCellThree = analogRead(batteryPinThree)*15.0/1024.0 - batteryCellTwo - batteryCellOne;
+    char batThree[4];
+    dtostrf(batteryCellThree, 4, 2, batThree);
     strcat(message, batThree);
     char encryptedMessage[64];
     encrypt(message, testKey, encryptedMessage);
@@ -241,18 +268,5 @@ void loop()                     // run over and over again
     }
     Serial.println(encryptedMessage);
   }
-
-  // LED control basaed on distance sensor
-  if (distance <= 5) {
-    tooClose = true;
-    digitalWrite(redLEDPin, HIGH);
-    digitalWrite(greenLEDPin, LOW);
-    analogWrite(enA, 0);
-    digitalWrite(in1,LOW);
-    digitalWrite(in2,LOW);
-  } else {
-    tooClose = false;
-    digitalWrite(redLEDPin, LOW);
-    digitalWrite(greenLEDPin, HIGH);
-  }
+  delay(100);
 }
