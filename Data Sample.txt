@@ -1,0 +1,22 @@
+Data sample:
+	No GPS Fix:
+		"GNFDDSTTT.TTV.VVV.VVV.VV"
+			First character always "G". Used to ensure that the message wasn't corrupted.
+			NF - No Fix.
+			DD - Two digit distance reading. (cm)
+			S - "S" or "G", Stop or Go based on distance.
+			TTT.TT - Temperature measurement. (*C)
+			V.VV x 3 - Voltage reading for each battery cell. (V)
+	GPS Fix:
+		"GOOOO.OOAAAA.AASSS.SAAAAA.AASDDSTTT.TTV.VVV.VVV.VV"
+			First character always "G". Used to ensure that the message wasn't corrupted.
+			OOOO.OO - Longitude. (Includes "-" for negative values.) (*)
+			AAAA.AA - Latitude. (Includes "-" for negative values.) (*)
+			SSS.S - Speed. (kn)
+			AAAAA.AA - Altitude. (cm)
+			S - Number of satellites.
+			DD - Two digit distance reading. (cm)
+			S - "S" or "G", Stop or Go based on distance.
+			TTT.TT - Temperature measurement. (*C)
+			V.VV x 3 - Voltage reading for each battery cell. (V)
+			
