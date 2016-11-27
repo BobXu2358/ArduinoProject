@@ -1,4 +1,4 @@
-Data sample:
+Output:
 	No GPS Fix:
 		"GNFDDSTTT.TTV.VVV.VVV.VV"
 			First character always "G". Used to ensure that the message wasn't corrupted.
@@ -19,4 +19,19 @@ Data sample:
 			S - "S" or "G", Stop or Go based on distance.
 			TTT.TT - Temperature measurement. (*C)
 			V.VV x 3 - Voltage reading for each battery cell. (V)
+Input:
+	Stop:
+		"S"
+	Forward:
+		"FSSS"
+			SSS - Integer speed from 0 to 255.
+	Backward:
+		"BSSS"
+			SSS - Integer speed from 0 to 255.
+	Left:
+		"LSSS"
+			SSS - Integer speed from 0 to 255.
+	Right:
+		"RSSS"
+			SSS - Integer speed from 0 to 255.
 			
