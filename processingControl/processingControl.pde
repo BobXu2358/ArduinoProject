@@ -14,20 +14,26 @@ void setup() {
    port = new Serial(this, portName, 9600);
 }
 
-//
 void draw() {
+   //clear previous info
+   background(255);
+   
+   //constantly update information form serial input passed from arduino
+   while(port.available() > 0) {
+     //read string
+       String in = port.readString();
+       if(in != null)
+         displayInput(in);
+   }
+   
+   //delay(2000);
    
    //listen to keyboard press event and drive the car
    carControl();
-   
-   //constantly update information form serial input passed from arduino
-   while(port.available() > 0)
-     displayInput();
 }
 
-void displayInput() {
-    //read string
-    String in = port.readString();
+void displayInput(String in) {
+    println(in);
     //integer value stores vertical position for the text to display, is set to 30 every update cycle
     int vertPos = 30;
     //first check if the message is corrupted and display it 
@@ -35,7 +41,7 @@ void displayInput() {
         println("Messge is corrupted!");
         textSize(12);
         fill(50);
-        text("Messge is corrupted!", 10, 30);
+        text("Messge is corrupted!", 10, vertPos);
     }
     else {
       
@@ -47,7 +53,7 @@ void displayInput() {
             try {
                 displayNF(in.substring(3), vertPos);
             }
-            catch(ArrayIndexOutOfBoundsException e) {
+            catch(StringIndexOutOfBoundsException e) {
                  println("Error displaying NF info");
             }
         }
@@ -63,14 +69,14 @@ void displayInput() {
                 //index 15-19 speed
                 drawText("Speed(in knot)", in.substring(15, 20), "kn", vertPos+=30);
                 //index 20-28 altitude
-                drawText("Altitude", in.substring(20, 29), "cm", vertPos+=30);
+                drawText("Altitude", in.substring(20, 28), "cm", vertPos+=30);
                 //index 29 number of satellites
-                drawText("Number of satellites", in.substring(29, 30), "", vertPos+=30);
+                drawText("Number of satellites", in.substring(28, 29), "", vertPos+=30);
                 
                 //after index 30 the rest non-fix info
-                displayNF(in.substring(30), vertPos);
+                displayNF(in.substring(29), vertPos);
             }
-            catch(ArrayIndexOutOfBoundsException e) {
+            catch(StringIndexOutOfBoundsException e) {
                  println("Error displaying FIX info");
             }
         }
@@ -84,7 +90,7 @@ void displayInput() {
 void displayNF(String str, int vertPos) {
     //see comments on drawText() method, vertPos is incremented by 30 after every piece of info
     //index 0-1 distance
-    drawText("Distance from object in the front", str.substring(0, 1), "cm", vertPos+=30);
+    drawText("Distance from object in the front", str.substring(0, 2), "cm", vertPos+=30);
     //index 2 stop or going
     if(str.charAt(2) == 'S')
       drawText("Move forward", "disabled", "", vertPos+=30);
@@ -98,7 +104,7 @@ void displayNF(String str, int vertPos) {
     int index = 9;
     //read battery cell votage three times
     for(int i = 0; i < 3; i++)
-        drawText("Battery cell #"+i+" voltage", str.substring(index, index+=4), "V", vertPos+=30);
+        drawText("Battery cell #"+(i+1)+" voltage", str.substring(index, index+=4), "V", vertPos+=30);
 }
 
 //easy helper function to draw text to GUI display
@@ -154,7 +160,7 @@ void carControl() {
      }
      
      //just for debugging purpose to print out command string
-     print(out + "\n");
+     //print(out + "\n");
      //output the string to serial
      port.write(out);
      
