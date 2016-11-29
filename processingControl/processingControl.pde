@@ -15,10 +15,9 @@ void setup() {
 }
 
 void draw() {
-   //clear previous info
-   background(255);
-   
+  
    //constantly update information form serial input passed from arduino
+   
    while(port.available() > 0) {
      //read string
        String in = port.readString();
@@ -26,13 +25,15 @@ void draw() {
          displayInput(in);
    }
    
-   //delay(2000);
+   delay(100);
+   carControl();
    
    //listen to keyboard press event and drive the car
-   carControl();
 }
 
 void displayInput(String in) {
+  
+    background(255);
     println(in);
     //integer value stores vertical position for the text to display, is set to 30 every update cycle
     int vertPos = 30;
