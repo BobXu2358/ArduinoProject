@@ -11,7 +11,7 @@ int shortDataLength = 24;
 int longDataLength = 50;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial.println("Message reciever.");
   mySerial.begin(9600);
 }
@@ -72,12 +72,12 @@ void loop() {
     decrypt(buffer, testKey, decryptedMessage);
     if(decryptedMessage[0] == 'G') {
       if(decryptedMessage[1] == 'N' && decryptedMessage[2] == 'F') {
-        Serial.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+        //Serial.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
         for(int i = 0; i < shortDataLength; i++) {
           Serial.print(decryptedMessage[i]);
         }
         Serial.println();
-        
+        /*
         String distanceBuffer = "";
         distanceBuffer += decryptedMessage[3];
         distanceBuffer += decryptedMessage[4];
@@ -149,13 +149,14 @@ void loop() {
         } else {
           Serial.println("Charged");
         }
+        */
       } else {
-        Serial.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+        //Serial.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
         for(int i = 0; i < longDataLength; i++) {
           Serial.print(decryptedMessage[i]);
         }
         Serial.println();
-
+        /*
         Serial.println("GPS Fix");
 
         String latBuffer = "";
@@ -284,15 +285,18 @@ void loop() {
         } else {
           Serial.println("Charged");
         }
+        */
       }
     }
   } else {
+    /*
     int currentTime = millis();
     if(currentTime - time > 2000) {
       time = currentTime;
       Serial.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
       Serial.println("No connection");
     }
+    */
   }
   delay(100);
 }
