@@ -8,16 +8,20 @@ String out = "S";
 
 void setup() {
    //set up display window
-   size(600, 600);
+   size(1200, 1200);
+     background(255);
    //finds the first port, probably needs to modify if connected with mac or linux
    String portName = Serial.list()[0];
-   port = new Serial(this, portName, 9600);
+   println(portName);
+   port = new Serial(this, portName, 115200);
 }
 
 void draw() {
-  
-   //constantly update information form serial input passed from arduino
+   //clear previous info
+   if(port.available() > 0)
+     background(255);
    
+   //constantly update information form serial input passed from arduino
    while(port.available() > 0) {
      //read string
        String in = port.readString();
@@ -25,22 +29,20 @@ void draw() {
          displayInput(in);
    }
    
-   delay(100);
-   carControl();
+   //delay(2000);
    
    //listen to keyboard press event and drive the car
+   carControl();
 }
 
 void displayInput(String in) {
-  
-    background(255);
     println(in);
     //integer value stores vertical position for the text to display, is set to 30 every update cycle
     int vertPos = 30;
     //first check if the message is corrupted and display it 
     if(in.charAt(0) != 'G') {
         println("Messge is corrupted!");
-        textSize(12);
+        textSize(36);
         fill(50);
         text("Messge is corrupted!", 10, vertPos);
     }
@@ -115,7 +117,7 @@ void displayNF(String str, int vertPos) {
 //param vertPos: vertical position of the text
 void drawText(String cate, String value, String unit, int vertPos) {
     //predifine text size to be 12 and color to be 50
-    textSize(12);
+    textSize(36);
     fill(50);
     
     //eliminate all white spaces in string

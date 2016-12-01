@@ -5,7 +5,7 @@
 #include <Adafruit_GPS.h> // Adafruit GPS library. Thales gave us an Adafruit Ultimate GPS Shield, so their library works perfectly.
 #include <SoftwareSerial.h> // Software serial for GPS module. This is used to give us another serial port so we can communicate with the GPS shield and computer/radio at the same time.
 #include <SharpIR.h> // Infrared distance sensor library. I think it's just a variable resistor, but regardless, the library works like a charm.
-#include <SpritzCipher.h> // Encryption library.
+#include <AESLib.h>
 
 // GPS Initialization
 SoftwareSerial mySerial(3, 2);
@@ -25,10 +25,11 @@ int tempPin = 1;
 int batteryPinOne = 2;
 int batteryPinTwo = 3;
 int batteryPinThree = 4;
-int shortDataLength = 24;
-int longDataLength = 50;
+int shortDataLength = 25;
+int longDataLength = 51;
 int direction = 0;
 int speed = 0;
+unsigned long oldTime = 0;
 
 // Motor Controller
 int enA = 5;
@@ -38,18 +39,21 @@ int in3 = 8;
 int in4 = 9;
 
 // Encryption
-const byte testKey[64] = {0x43,0x5E,0xD6,0xD6,0x1C,0xA1,0x81,0x8B,0xBA,0x96,0xAB,0x98,0xB1,0xB6,0xC8,0x62,0x81,0x24,0xB6,0xF7,0xEB,0xA7,0x7A,0x7B,0xE4,0x24,0x57,0xF8,0x6C,0xB3,0x5A,0x63,0x43,0x5E,0xD6,0xD6,0x1C,0xA1,0x81,0x8B,0xBA,0x96,0xAB,0x98,0xB1,0xB6,0xC8,0x62,0x81,0x24,0xB6,0xF7,0xEB,0xA7,0x7A,0x7B,0xE4,0x24,0x57,0xF8,0x6C,0xB3,0x5A,0x63};
-
-uint32_t timer = millis();
+uint8_t key[] = {0,90,65,99,121,76,111,48,77,113,86,70,52,67,86,111,116,76,55,65,66,80,69,90,87,70,51,79,89,90,48,87,50};
 
 void setup()
 {
+
+  oldTime = millis();
+
+  pinMode(13,OUTPUT);
+  digitalWrite(13,LOW);
 
   // connect at 115200 so we can read the GPS fast enough and echo without dropping chars
   // also spit it out
 
   Serial.begin(9600);
-  Serial.println("Controller 0001");
+  Serial.println("Car 0001");
 
   // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
   GPS.begin(9600);
@@ -91,41 +95,6 @@ void useInterrupt(boolean v) {
     TIMSK0 &= ~_BV(OCIE0A);
     usingInterrupt = false;
   }
-}
-
-void encrypt(const byte *msg, const byte *key, byte *omsg) {
-  spritz_ctx s_ctx;
-  omsg[0] = '\0';
-
-  unsigned int msgLen = 0;
-  byte keyLen = 64;
-
-  for(int i = 0; i < 64; i++) {
-    if(msg[i] == 0) {
-      break;
-    }
-    msgLen++;
-  }
-
-  spritz_setup(&s_ctx, key, keyLen);
-  spritz_crypt(&s_ctx, msg, msgLen, omsg);
-}
-
-void decrypt(const byte *msg, const byte *key, byte *omsg) {
-  spritz_ctx s_ctx;
-
-  unsigned int msgLen = 0;
-  byte keyLen = 64;
-  
-  for(int i = 0; i < 64; i++) {
-    if(msg[i] > 0) {
-      msgLen++;
-    }
-  }
-  msgLen = shortDataLength;
-      
-  spritz_setup(&s_ctx, key, keyLen);
-  spritz_crypt(&s_ctx, msg, msgLen, omsg);
 }
 
 void loop()                     // run over and over again
@@ -198,14 +167,17 @@ void loop()                     // run over and over again
   }
   // if a sentence is received, we can check the checksum, parse it...
   if (GPS.newNMEAreceived()) {
-    boolean full = false;
-    char message[64];
-    message[0] = '\0';
-    strcat(message, "G");
     if (!GPS.parse(GPS.lastNMEA())) {   // this also sets the newNMEAreceived() flag to false
       return;  // we can fail to parse a sentence in which case we should just wait for another
     }
-    if (printGPSData) {
+    unsigned long newTime = millis();
+    if(newTime - oldTime >= 2000) {
+      digitalWrite(13,HIGH);
+      oldTime = newTime;
+      boolean full = false;
+      char message[64];
+      message[0] = '\0';
+      strcat(message, "G");
       if (GPS.fix) {
         full = true;
         char locationBuffer[7];
@@ -229,44 +201,51 @@ void loop()                     // run over and over again
       } else {
         strcat(message, "NF");
       }
-    }
-    char distanceBuffer[2];
-    dtostrf(distance, 2, 0, distanceBuffer);
-    strcat(message,distanceBuffer);
-    if(distance <= 10) {
-      strcat(message, "S");
-    } else {
-      strcat(message, "G");
-    }
-    double temperature = ((analogRead(tempPin)*5.0/1024.0)-0.5)*100.0;
-    char temp[6];
-    dtostrf(temperature, 6, 2, temp);
-    strcat(message, temp);
-    double batteryCellOne = analogRead(batteryPinOne)*5.0/1024.0;
-    char batOne[4];
-    dtostrf(batteryCellOne, 4, 2, batOne);
-    strcat(message, batOne);
-    double batteryCellTwo = analogRead(batteryPinTwo)*10.0/1024.0 - batteryCellOne;
-    char batTwo[4];
-    dtostrf(batteryCellTwo, 4, 2, batTwo);
-    strcat(message, batTwo);
-    double batteryCellThree = analogRead(batteryPinThree)*15.0/1024.0 - batteryCellTwo - batteryCellOne;
-    char batThree[4];
-    dtostrf(batteryCellThree, 4, 2, batThree);
-    strcat(message, batThree);
-    char encryptedMessage[64];
-    encrypt(message, testKey, encryptedMessage);
-    boolean found = false;
-    if(full) {
-      for(int i = longDataLength; i < 64; i++) {
-        encryptedMessage[i] = '\0';
+      
+      char distanceBuffer[2];
+      dtostrf(distance, 2, 0, distanceBuffer);
+      strcat(message,distanceBuffer);
+      if(distance <= 10) {
+        strcat(message, "S");
+      } else {
+        strcat(message, "G");
       }
+      double temperature = ((analogRead(tempPin)*5.0/1024.0)-0.5)*100.0;
+      char temp[6];
+      dtostrf(temperature, 6, 2, temp);
+      strcat(message, temp);
+      double batteryCellOne = analogRead(batteryPinOne)*5.0/1024.0;
+      char batOne[4];
+      dtostrf(batteryCellOne, 4, 2, batOne);
+      strcat(message, batOne);
+      double batteryCellTwo = analogRead(batteryPinTwo)*10.0/1024.0 - batteryCellOne;
+      char batTwo[4];
+      dtostrf(batteryCellTwo, 4, 2, batTwo);
+      strcat(message, batTwo);
+      double batteryCellThree = analogRead(batteryPinThree)*15.0/1024.0 - batteryCellTwo - batteryCellOne;
+      char batThree[4];
+      dtostrf(batteryCellThree, 4, 2, batThree);
+      strcat(message, batThree);
+      strcat(message, "*");
+      for(int i = 0; i < 4; i++) {
+        char encryptedMessage[17];
+        encryptedMessage[16] = '\0';
+        for(int j = 0; j < 16; j++) {
+          encryptedMessage[j] = message[16*i+j];
+        }
+        aes256_enc_single(key, encryptedMessage);
+        Serial.print(encryptedMessage);
+      }
+      Serial.println();
+      digitalWrite(13,LOW);
     } else {
-      for(int i = shortDataLength; i < 64; i++) {
-        encryptedMessage[i] = '\0';
+      if(GPS.fix) {
+        mySerial.print("A");
+        mySerial.println(GPS.latitudeDegrees, 4);
+        mySerial.print("O");
+        mySerial.println(GPS.longitudeDegrees, 4);
       }
     }
-    Serial.println(encryptedMessage);
   }
-  delay(100);
+  delay(10);
 }
